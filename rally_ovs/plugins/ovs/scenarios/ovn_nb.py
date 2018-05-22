@@ -13,6 +13,8 @@
 # under the License.
 
 import netaddr
+import random
+import re
 
 from rally_ovs.plugins.ovs.scenarios import ovn
 
@@ -82,6 +84,55 @@ class OvnNorthbound(ovn.OvnScenario):
                                       port_bind_args, ip_start_index,
                                       addr_set_index, (iteration % 2) == 0,
                                       create_acls)
+
+    @atomic.action_timer("ovn.delete_port_acls")
+    def delete_port_acls(self, lswitch, lport, addr_set_index):
+        match = "'outport == %s && ip4.src == $addrset%d'" % (lport["name"], addr_set_index)
+        self._delete_acls(lswitch, "to-lport", "1000", match)
+        match = "'outport == %s'" % lport["name"]
+        self._delete_acls(lswitch, "to-lport", "900", match)
+
+    @atomic.action_timer("ovn.delete_addr_from_addrset")
+    def delete_addr_from_addrset(self, addr_set_index, addr):
+       self._address_set_remove_addrs("addrset%d" % addr_set_index, addr)
+
+    @scenario.configure()
+    def add_remove_routed_lport(self, test_args,
+                                lport_create_args = None,
+                                port_bind_args = None,
+                                create_acls = True):
+        naddress_set = test_args.get("naddress", 10)
+        prefix_len = test_args.get("prefixlen", 24)
+
+        iteration = self.context["iteration"]
+        lswitches = self.context["ovn-nb"]
+
+        addr_set_index = iteration % naddress_set
+
+        if random.randint(0, 1):
+            #add a port
+            lswitch = lswitches[iteration % len(lswitches)]
+            ip_start_index = (iteration + 2 * naddress_set) / len(lswitches) + 1
+            LOG.info("adding port to %s" % lswitch["name"])
+            self.create_lport_acl_addrset(lswitch, lport_create_args,
+                                          port_bind_args, ip_start_index,
+                                          addr_set_index, False,
+                                          create_acls)
+        else:
+            addr_set = self._get_address_set("addrset%d" % addr_set_index)
+            # get first ip of the address set
+            ip_addr = re.sub('\[|\]|\"|\\n', '', addr_set).split(",")[0]
+            cidr = netaddr.IPNetwork(ip_addr)
+            cidr.prefixlen = prefix_len
+
+            lport = { "name": "lport_%s" % ip_addr }
+            lswitch = { "name" : "lswitch_%s" % cidr.cidr }
+            LOG.info("removing port %s from %s lswitch" % (lport["name"], lswitch["name"]))
+
+            if create_acls:
+                self.delete_addr_from_addrset(addr_set_index, ip_addr)
+                self.delete_port_acls(lswitch, lport, addr_set_index)
+            self._delete_lport([lport])
 
     @scenario.configure(context={})
     def create_and_list_lswitches(self, lswitch_create_args=None):
