@@ -41,9 +41,11 @@ class OvnNorthbound(ovn.OvnScenario):
         """
         match = "%(direction)s == %(lport)s && ip4.src == %(address_set)s"
         acl_create_args = { "match" : match, "address_set" : addr_set }
-        self._create_acl(lswitch, lports, acl_create_args, 1)
+        self._create_acl(lswitch, lports, acl_create_args, 1,
+                         atomic_action = False)
         acl_create_args = { "priority" : 900, "action" : "drop", "match" : "%(direction)s == %(lport)s" }
-        self._create_acl(lswitch, lports, acl_create_args, 1)
+        self._create_acl(lswitch, lports, acl_create_args, 1,
+                         atomic_action = False)
 
     def create_lport_acl_addrset(self, lswitch, lport_create_args, port_bind_args,
                                  ip_start_index = 0, addr_set_index = 0,
