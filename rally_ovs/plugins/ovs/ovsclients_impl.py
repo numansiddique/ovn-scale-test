@@ -40,9 +40,13 @@ class OvnNbctl(OvsClient):
             self.sandbox = None
             self.batch_mode = False
             self.cmds = None
+            self.daemon = False
 
         def enable_batch_mode(self, value=True):
             self.batch_mode = bool(value)
+
+        def enable_daemon_mode(self, daemon):
+            self.daemon = daemon
 
         def set_sandbox(self, sandbox, install_method="sandbox"):
             self.sandbox = sandbox
@@ -51,6 +55,11 @@ class OvnNbctl(OvsClient):
         def run(self, cmd, opts=[], args=[], stdout=sys.stdout,
                 stderr=sys.stderr, quit_on_error=True):
             self.cmds = self.cmds or []
+
+            if self.daemon:
+                ovn_cmd = "ovs-appctl -t ovn-nbctl run"
+            else:
+                ovn_cmd = "ovn-nbctl"
 
             if self.batch_mode:
                 cmd = itertools.chain([" -- "], opts, [cmd], args)
@@ -64,7 +73,7 @@ class OvnNbctl(OvsClient):
                 elif self.install_method == "docker":
                     cmd_prefix = ["sudo docker exec ovn-north-database"]
 
-                cmd = itertools.chain(cmd_prefix, ["ovn-nbctl"], opts, [cmd], args)
+                cmd = itertools.chain(cmd_prefix, [ovn_cmd], opts, [cmd], args)
                 self.cmds.append(" ".join(cmd))
 
             self.ssh.run("\n".join(self.cmds),
@@ -77,13 +86,18 @@ class OvnNbctl(OvsClient):
             if self.cmds == None or len(self.cmds) == 0:
                 return
 
+            if self.daemon:
+                ovn_cmd = "ovs-appctl -t ovn-nbctl run"
+            else:
+                ovn_cmd = "ovn-nbctl"
+
             run_cmds = []
             if self.sandbox:
                 if self.install_method == "sandbox":
                     run_cmds.append(". %s/sandbox.rc" % self.sandbox)
-                    run_cmds.append("ovn-nbctl" + " ".join(self.cmds))
+                    run_cmds.append(ovn_cmd + " ".join(self.cmds))
                 elif self.install_method == "docker":
-                    run_cmds.append("sudo docker exec ovn-north-database ovn-nbctl " + " ".join(self.cmds))
+                    run_cmds.append("sudo docker exec ovn-north-database " + ovn_cmd + " ".join(self.cmds))
 
             self.ssh.run("\n".join(run_cmds),
                          stdout=sys.stdout, stderr=sys.stderr)
@@ -216,6 +230,13 @@ class OvnNbctl(OvsClient):
 
             self.run("sync", opts)
             self.batch_mode = batch_mode
+
+        def start_daemon(self):
+            opts = ["--detach",  "--pidfile", "--log-file"]
+            self.run("", opts=opts, quit_on_error=False)
+
+        def stop_daemon(self):
+            self.run("exit")
 
     def create_client(self):
         print "*********   call OvnNbctl.create_client"
