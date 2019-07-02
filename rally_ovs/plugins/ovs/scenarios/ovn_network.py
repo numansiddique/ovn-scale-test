@@ -103,9 +103,12 @@ class OvnNetwork(ovn.OvnScenario):
                     if start_cidr:
                         lswitches[i]["cidr"] = start_cidr.next(i)
 
+        lports = []
+
         for lswitch in lswitches:
-            lports = self._create_lports(lswitch, port_create_args, ports_per_network)
-            self._bind_ports_and_wait(lports, sandboxes, port_bind_args)
+            lports += self._create_lports(lswitch, port_create_args, ports_per_network)
+
+        self._bind_ports_and_wait(lports, sandboxes, port_bind_args)
 
 
     def bind_ports(self):

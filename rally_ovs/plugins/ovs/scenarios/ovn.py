@@ -65,7 +65,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
         LOG.info("create %d lports on lswitch %s" % \
                             (lport_amount, lswitch["name"]))
 
-        self.RESOURCE_NAME_FORMAT = "lport_XXXXXX_XXXXXX"
+        self.RESOURCE_NAME_FORMAT = "lpXXXXXX_XXXXXX"
 
         batch = lport_create_args.get("batch", lport_amount)
         port_security = lport_create_args.get("port_security", True)
@@ -96,12 +96,13 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
         flush_count = batch
         lports = []
         for i in range(lport_amount):
-            ip = str(ip_addrs.next()) if ip_addrs else ""
-            if len(ip):
-                name = "lport_%s" % ip
-            else:
-                name = self.generate_random_name()
+            name = self.generate_random_name()
+            ip_addr = ip_addrs.next()
+            ip = str(ip_addr) if ip_addrs else ""
             mac = utils.get_random_mac(base_mac)
+            ip_mask = '{}/{}'.format(ip, network_cidr.prefixlen)
+            lport = ovn_nbctl.lswitch_port_add(lswitch["name"], name, mac,
+                                               ip_mask)
 
             lport = ovn_nbctl.lswitch_port_add(lswitch["name"], name)
 
@@ -275,8 +276,25 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
         if wait_up:
             self._wait_up_port(lports, wait_sync)
 
+    def _bind_fake_vm(self, ovs_ssh, lport):
+        port_name = lport["name"]
+        port_mac = lport["mac"]
+        port_ip = lport["ip"]
+        ovs_ssh.run('ip netns add {p}'.format(p=port_name))
+        ovs_ssh.run('ip link set {p} netns {p}'.format(p=port_name))
+        ovs_ssh.run('ip netns exec {p} ip link set {p} address {m}'.format(
+            p=port_name, m=port_mac)
+        )
+        ovs_ssh.run('ip netns exec {p} ip addr add {ip} dev {p}'.format(
+            p=port_name, ip=port_ip)
+        )
+        ovs_ssh.run('ip netns exec {p} ip link set {p} up'.format(
+            p=port_name)
+        )
+
     @atomic.action_timer("ovn_network.bind_port")
     def _bind_ports(self, lports, sandboxes, port_bind_args):
+        internal = port_bind_args.get("internal", False)
         sandbox_num = len(sandboxes)
         lport_num = len(lports)
         lport_per_sandbox = (lport_num + sandbox_num - 1) / sandbox_num
@@ -291,14 +309,22 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
                 ovs_vsctl.set_sandbox(sandbox, self.install_method)
                 ovs_vsctl.enable_batch_mode()
                 port_name = lport["name"]
+                port_mac = lport["mac"]
+                port_ip = lport["ip"]
                 LOG.info("bind %s to %s on %s" % (port_name, sandbox, farm))
 
-                ovs_vsctl.add_port('br-int', port_name)
+                ovs_vsctl.add_port('br-int', port_name, internal=internal)
                 ovs_vsctl.db_set('Interface', port_name,
                                  ('external_ids', {"iface-id": port_name,
                                                    "iface-status": "active"}),
                                  ('admin_state', 'up'))
                 ovs_vsctl.flush()
+
+                # If it's an internal port create a "fake vm"
+                if internal:
+                    ovs_ssh = self.farm_clients(farm, "ovs-ssh")
+                    self._bind_fake_vm(ovs_ssh, lport)
+                    ovs_ssh.flush()
 
         else:
             j = 0
@@ -315,12 +341,21 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
 
                     LOG.info("bind %s to %s on %s" % (port_name, sandbox, farm))
 
-                    ovs_vsctl.add_port('br-int', port_name)
+                    ovs_vsctl.add_port('br-int', port_name, internal=internal)
                     ovs_vsctl.db_set('Interface', port_name,
                                      ('external_ids', {"iface-id":port_name,
                                                        "iface-status":"active"}),
                                      ('admin_state', 'up'))
                 ovs_vsctl.flush()
+
+                # If it's an internal port create a "fake vm"
+                if internal:
+                    ovs_ssh = self.farm_clients(farm, "ovs-ssh")
+                    ovs_ssh.enable_batch_mode()
+
+                    for lport in lport_slice:
+                        self._bind_fake_vm(ovs_ssh, lport)
+                    ovs_ssh.flush()
                 j += 1
 
     @atomic.action_timer("ovn_network.wait_port_up")
