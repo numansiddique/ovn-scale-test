@@ -1,35 +1,81 @@
 {
-    "type": "OvnMultihostEngine",
     "controller": {
-        "type": "OvnSandboxControllerEngine",
+        "controller_cidr": "192.168.42.254/24",
         "deployment_name": "ovn-controller-node",
         "install_method": "physical",
-        "controller_cidr": "192.168.42.254/24",
         "ovs_user": "root",
         "provider": {
-            "type": "OvsSandboxProvider",
             "credentials": [
                 {
                     "host": "192.168.42.254",
-                    "user": "root"}
-            ]
-        }
+                    "user": "root"
+                }
+            ],
+            "type": "OvsSandboxProvider"
+        },
+        "type": "OvnSandboxControllerEngine"
     },
     "nodes": [
         {
-            "type": "OvnSandboxFarmEngine",
             "deployment_name": "ovn-farm-node-0",
             "install_method": "physical",
             "ovs_user": "root",
             "provider": {
-                "type": "OvsSandboxProvider",
                 "credentials": [
                     {
-                        "host": "192.168.20.20",
-                        "user": "root"}
-                ]
-            }
+                        "host": "192.168.42.10",
+                        "user": "root"
+                    }
+                ],
+                "type": "OvsSandboxProvider"
+            },
+            "type": "OvnSandboxFarmEngine"
+        },
+        {
+            "deployment_name": "ovn-farm-node-1",
+            "install_method": "physical",
+            "ovs_user": "root",
+            "provider": {
+                "credentials": [
+                    {
+                        "host": "192.168.42.11",
+                        "user": "root"
+                    }
+                ],
+                "type": "OvsSandboxProvider"
+            },
+            "type": "OvnSandboxFarmEngine"
+        },
+        {
+            "deployment_name": "ovn-farm-node-2",
+            "install_method": "physical",
+            "ovs_user": "root",
+            "provider": {
+                "credentials": [
+                    {
+                        "host": "192.168.42.12",
+                        "user": "root"
+                    }
+                ],
+                "type": "OvsSandboxProvider"
+            },
+            "type": "OvnSandboxFarmEngine"
+        },
+        {
+            "deployment_name": "ovn-farm-node-3",
+            "install_method": "physical",
+            "ovs_user": "root",
+            "provider": {
+                "credentials": [
+                    {
+                        "host": "192.168.42.13",
+                        "user": "root"
+                    }
+                ],
+                "type": "OvsSandboxProvider"
+            },
+            "type": "OvnSandboxFarmEngine"
         }
-    ]
-
+    ],
+    "type": "OvnMultihostEngine"
 }
