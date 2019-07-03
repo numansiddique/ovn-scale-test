@@ -330,6 +330,9 @@ class OvsVsctl(OvsClient):
             extras = ['--', 'set interface {} type=internal'.format(port)] if internal else None
             self.run('add-port', opts, [bridge, port], extras)
 
+        def del_port(self, port):
+            self.run('del-port', args=[port])
+
         def db_set(self, table, record, *col_values):
             args = [table, record]
             args += set_colval_args(*col_values)
