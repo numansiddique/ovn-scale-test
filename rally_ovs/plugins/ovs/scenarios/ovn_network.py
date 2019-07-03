@@ -85,7 +85,8 @@ class OvnNetwork(ovn.OvnScenario):
                               network_create_args=None,
                               port_create_args=None,
                               ports_per_network=None,
-                              port_bind_args=None):
+                              port_bind_args=None,
+                              internal_ports_cleanup=True):
 
         sandboxes = self.context["sandboxes"]
 
@@ -110,6 +111,8 @@ class OvnNetwork(ovn.OvnScenario):
 
         self._bind_ports_and_wait(lports, sandboxes, port_bind_args)
 
+        if internal_ports_cleanup:
+            self._cleanup_ovs_internal_ports(sandboxes)
 
     def bind_ports(self):
         pass
