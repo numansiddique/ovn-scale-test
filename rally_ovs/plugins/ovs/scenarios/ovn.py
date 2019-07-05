@@ -334,6 +334,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
                 sandbox_data = random.choice(sandboxes)
                 farm = sandbox_data['farm']
                 sandbox = sandbox_data['name']
+                lport['sandbox_info'] = sandbox_data
                 ovs_vsctl = self.farm_clients(farm, "ovs-vsctl")
 
                 ovs_vsctl.set_sandbox(sandbox, self.install_method)
@@ -473,3 +474,33 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
         ovn_nbctl.set_sandbox("controller-sandbox", self.install_method)
         ovn_nbctl.enable_batch_mode(False)
         return ovn_nbctl.get("Address_Set", set_name, 'addresses')
+
+    def _send_ping(self, ovs_ssh, cmd):
+        try:
+            ovs_ssh.run()
+            ovs_ssh.flush()
+        except:
+            return False
+        return True
+
+    @atomic.action_timer("ovn_network.ping_ports")
+    def _ping_ports(self, src_port, dst_port):
+        LOG.info("src_port = " + str(src_port) + "\n")
+        LOG.info("dst_port = " + str(dst_port) + "\n")
+        ovs_ssh = self.farm_clients(src_port['sandbox_info']['farm'], "ovs-ssh")
+        #ovs_ssh.enable_batch_mode()
+        dst_ip = str(netaddr.IPNetwork(dst_port['ip']).ip)
+        num_attemps = 0
+        cmd = 'ip netns exec {p} ping -c3 {d}'.format(p=src_port["name"], d=dst_ip)
+        bool success = False;
+        total_atempts = 45
+        while num_attemps < total_atempts:
+            success = self._send_ping(ovs_ssh, cmd)
+            if success:
+                break
+            num_attemps += 1
+
+        if not success:
+            LOG.info('ping failed')
+
+
