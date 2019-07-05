@@ -146,11 +146,11 @@ class OvnNbctl(OvsClient):
             output = stdout.getvalue()
             return parse_lswitch_list(output)
 
-        def lswitch_port_add(self, lswitch, name):
+        def lswitch_port_add(self, lswitch, name, mac='', ip=''):
             params =[lswitch, name]
             self.run("lsp-add", args=params)
 
-            return {"name":name}
+            return {"name":name, "mac":mac, "ip":ip}
 
 
         def lport_list(self, lswitch):
@@ -250,7 +250,40 @@ class OvnNbctl(OvsClient):
         return client
 
 
+@configure("ovs-ssh")
+class OvsSsh(OvsClient):
 
+    class _OvsSsh(object):
+        def __init__(self, credential):
+            self.ssh = get_ssh_from_credential(credential)
+            self.batch_mode = False
+            self.cmds = None
+
+        def enable_batch_mode(self, value=True):
+            self.batch_mode = bool(value)
+
+        def run(self, cmd):
+            self.cmds = self.cmds or []
+
+            self.cmds.append('sudo' + ' ' + cmd)
+            if self.batch_mode:
+                return
+
+            self.flush()
+
+        def flush(self):
+            if self.cmds == None:
+                return
+
+            self.ssh.run("\n".join(self.cmds),
+                         stdout=sys.stdout, stderr=sys.stderr)
+
+            self.cmds = None
+
+    def create_client(self):
+        print "*********   call OvsSsh.create_client"
+        client = self._OvsSsh(self.credential)
+        return client
 
 
 @configure("ovs-vsctl")
@@ -272,7 +305,7 @@ class OvsVsctl(OvsClient):
             self.sandbox = sandbox
             self.install_method = install_method
 
-        def run(self, cmd, opts=[], args=[]):
+        def run(self, cmd, opts=[], args=[], extras=[]):
             self.cmds = self.cmds or []
 
             # TODO: tested with non batch_mode only for docker
@@ -286,7 +319,7 @@ class OvsVsctl(OvsClient):
                     self.cmds.append("sudo docker exec %s ovs-vsctl " % self.sandbox + cmd + " " + " ".join(args))
 
             if self.install_method != "docker":
-                cmd = itertools.chain(["ovs-vsctl"], opts, [cmd], args)
+                cmd = itertools.chain(["ovs-vsctl"], opts, [cmd], args, extras)
                 self.cmds.append(" ".join(cmd))
 
             if self.batch_mode:
@@ -311,9 +344,11 @@ class OvsVsctl(OvsClient):
             self.cmds = None
 
 
-        def add_port(self, bridge, port, may_exist=True):
+        def add_port(self, bridge, port, may_exist=True, internal=False):
             opts = ['--may-exist'] if may_exist else None
-            self.run('add-port', opts, [bridge, port])
+
+            extras = ['--', 'set interface {} type=internal'.format(port)] if internal else None
+            self.run('add-port', opts, [bridge, port], extras)
 
 
         def db_set(self, table, record, *col_values):
