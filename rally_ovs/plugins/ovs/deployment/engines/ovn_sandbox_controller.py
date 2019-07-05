@@ -108,6 +108,8 @@ class OvnSandboxControllerEngine(SandboxEngine):
 
         if install_method == "docker":
             LOG.info("Do not run ssh; deployed by ansible-docker")
+        elif install_method == "physical":
+            LOG.info("Do not run ssh; deployed on physical test bed")
         elif install_method == "sandbox":
             ovs_server.ssh.run(cmd,
                             stdout=sys.stdout, stderr=sys.stderr)
@@ -129,18 +131,20 @@ class OvnSandboxControllerEngine(SandboxEngine):
 
     def cleanup(self):
         """Cleanup OVN deployment."""
+        install_method = self.config.get("install_method", "sandbox")
+        if install_method != "sandbox":
+             return
+
         for resource in self.deployment.get_resources():
             if resource["type"] == ResourceType.CREDENTIAL:
                 server = provider.Server.from_credentials(resource.info)
 
                 cmd = "[ -x ovs-sandbox.sh ] && ./ovs-sandbox.sh --cleanup-all"
 
+
                 server.ssh.run(cmd,
                             stdout=sys.stdout, stderr=sys.stderr,
                             raise_on_error=False)
 
             self.deployment.delete_resource(resource.id)
-
-
-
 
