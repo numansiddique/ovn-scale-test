@@ -19,6 +19,7 @@ from io import StringIO
 from rally_ovs.plugins.ovs.ovsclients import *
 from rally_ovs.plugins.ovs.utils import get_ssh_from_credential
 
+import subprocess
 
 @configure("ssh")
 class SshClient(OvsClient):
@@ -59,7 +60,8 @@ class OvnNbctl(OvsClient):
             if self.daemon:
                 ovn_cmd = "ovs-appctl -t ovn-nbctl run"
             else:
-                ovn_cmd = "ovn-nbctl"
+                #ovn_cmd = "ovn-nbctl"
+                ovn_cmd = "ovs-appctl -t /var/run/openvswitch/ovn-nbctl.88357.ctl run"
 
             if self.batch_mode:
                 cmd = itertools.chain([" -- "], opts, [cmd], args)
@@ -319,9 +321,13 @@ class OvsVsctl(OvsClient):
                     self.cmds.append("sudo docker exec %s ovs-vsctl " % self.sandbox + cmd + " " + " ".join(args))
 
             if self.install_method != "docker":
-                cmd = itertools.chain(["ovs-vsctl"], opts, [cmd], args, extras)
+                if self.install_method == "physical":
+                    cmd = itertools.chain(["sudo ovs-vsctl"], opts, [cmd], args, extras)
+                else:
+                    cmd = itertools.chain(["ovs-vsctl"], opts, [cmd], args, extras)
                 self.cmds.append(" ".join(cmd))
 
+                
             if self.batch_mode:
                 return
 

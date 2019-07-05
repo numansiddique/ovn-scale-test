@@ -111,6 +111,39 @@ class OvnNetwork(ovn.OvnScenario):
         if internal_ports_cleanup:
             self._cleanup_ovs_internal_ports(sandboxes)
 
+    @scenario.configure(context={})
+    def create_router_bind_ports_and_ping(self, router_create_args=None,
+                                          router_connection_method=None,
+                                          network_create_args=None,
+                                          ports_per_network=2,
+                                          internal_ports_cleanup=True,
+                                          port_create_args=None,
+                                          port_bind_args=None):
+        ports_per_network = 2
+        networks_per_router = 1
+        # Create routers and logical networks, and connect them
+        lrouters = self._create_routers(router_create_args)
+
+        num_router = int(router_create_args.get("amount", 1))
+        num_networks = int(networks_per_router) * num_router
+        lnetworks = self._create_networks(network_create_args, num_networks)
+
+        self._connect_networks_to_routers(lnetworks, lrouters, networks_per_router)
+
+        # Create ports on the logical networks
+        sandboxes = self.context["sandboxes"]
+        if not sandboxes:
+            # when there is no sandbox specified, bind on all sandboxes.
+            sandboxes = utils.get_sandboxes(self.task["deployment_uuid"])
+
+        network = lnetworks[0]
+        lports = self._create_lports(network, port_create_args, ports_per_network)
+        if (len(lports) < len(sandboxes)):
+            LOG.warn("Number of ports less than chassis: random binding\n")
+        self._bind_ports_and_wait(lports, sandboxes, port_bind_args)
+        self._ping_ports(lports[0], lports[1])
+        self._cleanup_ovs_internal_ports(sandboxes)
+
     def bind_ports(self):
         pass
 

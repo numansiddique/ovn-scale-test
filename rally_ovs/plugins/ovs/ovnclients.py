@@ -63,9 +63,9 @@ class OvnClientMixin(ovsclients.ClientsMixin, RandomNameGeneratorMixin):
             name = self.generate_random_name()
             if start_cidr:
                 cidr = start_cidr.next(i)
-                name = "lswitch_%s" % cidr
-            else:
-                name = self.generate_random_name()
+                #name = "lswitch_%s" % cidr
+            #else:
+            #    name = self.generate_random_name()
 
             lswitch = ovn_nbctl.lswitch_add(name)
             if start_cidr:
@@ -82,6 +82,14 @@ class OvnClientMixin(ovsclients.ClientsMixin, RandomNameGeneratorMixin):
 
         ovn_nbctl.flush() # ensure all commands be run
         ovn_nbctl.enable_batch_mode(False)
+
+        if lswitch_create_args.get("create_acls", True):
+            for ls in lswitches:
+                ovn_nbctl.acl_add(ls['name'], 'to-inport', 1000, 'ip', 'drop')
+                ovn_nbctl.acl_add(ls['name'], 'to-inport', 1001, 'icmp', 'allow')
+                ovn_nbctl.acl_add(ls['name'], 'to-inport', 1001, 'udp.src > 0 && udp.dst < 34555', 'drop')
+                ovn_nbctl.acl_add(ls['name'], 'to-inport', 1001, 'tcp.src > 0 && tcp.dst < 34555', 'drop')
+
         return lswitches
 
     def _create_routers(self, router_create_args):
