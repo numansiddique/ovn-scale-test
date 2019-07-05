@@ -108,7 +108,8 @@ class OvnNetwork(ovn.OvnScenario):
             lports += self._create_lports(lswitch, port_create_args, ports_per_network)
 
         self._bind_ports_and_wait(lports, sandboxes, port_bind_args)
-
+        if internal_ports_cleanup:
+            self._cleanup_ovs_internal_ports(sandboxes)
 
     def bind_ports(self):
         pass
