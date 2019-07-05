@@ -1,0 +1,110 @@
+{% set farm_nodes = farm_nodes or 1 %}
+{% set networks = networks or 1 %}
+{% set internal_ports_cleanup = internal_ports_cleanup or 0 %}
+{
+    "version": 2,
+    "title": "Create and bind port",
+    "subtasks": [
+        {
+            "title": "Create sandbox on farm 0",
+             "workloads": [{
+                 "name": "OvnSandbox.create_sandbox",
+                 "args": {
+                     "sandbox_create_args": {
+                         "farm": "ovn-farm-node-0",
+                         "amount": 1,
+                         "batch" : 1,
+                         "start_cidr": "10.19.188.11/24",
+                         "net_dev": "em3",
+                         "tag": "ToR1"
+                     }
+                 },
+                 "runner": {"type": "serial", "times": 1},
+                 "context": {
+                     "ovn_multihost" : {"controller": "ovn-controller-node"}
+                 }
+             }]
+        },
+        {
+            "title": "Create sandbox on farm 1",
+             "workloads": [{
+                 "name": "OvnSandbox.create_sandbox",
+                 "args": {
+                     "sandbox_create_args": {
+                         "farm": "ovn-farm-node-1",
+                         "amount": 1,
+                         "batch" : 1,
+                         "start_cidr": "10.19.188.13/24",
+                         "net_dev": "em3",
+                         "tag": "ToR1"
+                     }
+                 },
+                 "runner": {"type": "serial", "times": 1},
+                 "context": {
+                     "ovn_multihost" : {"controller": "ovn-controller-node"}
+                 }
+             }]
+        },
+        {
+            "title": "Create sandbox on farm 2",
+             "workloads": [{
+                 "name": "OvnSandbox.create_sandbox",
+                 "args": {
+                     "sandbox_create_args": {
+                         "farm": "ovn-farm-node-2",
+                         "amount": 1,
+                         "batch" : 1,
+                         "start_cidr": "10.19.188.15/24",
+                         "net_dev": "em3",
+                         "tag": "ToR1"
+                     }
+                 },
+                 "runner": {"type": "serial", "times": 1},
+                 "context": {
+                     "ovn_multihost" : {"controller": "ovn-controller-node"}
+                 }
+             }]
+        },
+        {% for i in range(0, networks) %}
+        {
+            "title": "Create and bind internal ports",
+            "run_in_parallel": true,
+            "workloads": [
+                {
+                    "name": "OvnNetwork.create_router_bind_ports_and_ping",
+                    "args": {
+                        "network_create_args": {
+                            "amount": 1,
+                            "batch": 1,
+                            "start_cidr": "42.{{i}}.1.1/24"
+                        },
+                        "router_create_args": {
+                            "amount": 1,
+                            "batch": 1
+                        },
+                        "port_create_args" : {"batch": 2},
+                        "ports_per_network": {{ports_per_network}},
+                        "port_bind_args": {
+                            "internal": true,
+                            "wait_up": true
+                        },
+                        "internal_ports_cleanup": {{internal_ports_cleanup}}
+                    },
+                    "runner": {
+                        "type": "serial",
+                        "times": 2
+                    },
+                    "context": {
+                        "ovn_multihost" : {
+                            "controller": "ovn-controller-node"
+                        },
+                        "sandbox": {"tag": "ToR1"},
+                        "ovn_nb": {}
+                    }
+                }
+            ]
+        },
+        {% endfor %}
+    ]
+}
+
