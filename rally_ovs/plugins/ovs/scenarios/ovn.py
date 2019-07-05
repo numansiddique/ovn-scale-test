@@ -332,6 +332,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
                 sandbox_data = random.choice(sandboxes)
                 farm = sandbox_data['farm']
                 sandbox = sandbox_data['name']
+                lport['sandbox_info'] = sandbox_data
                 ovs_vsctl = self.farm_clients(farm, "ovs-vsctl")
 
                 ovs_vsctl.set_sandbox(sandbox, self.install_method)
@@ -366,7 +367,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
                 ovs_vsctl.enable_batch_mode()
                 for lport in lport_slice:
                     port_name = lport["name"]
-
+                    lport['sandbox_info'] = sandboxes[j]
                     LOG.info("bind %s to %s on %s" % (port_name, sandbox, farm))
 
                     ovs_vsctl.add_port('br-int', port_name, internal=internal)
@@ -398,6 +399,36 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
 
         if wait_sync != "none":
             ovn_nbctl.sync(wait_sync)
+
+    def _send_ping(self, ovs_ssh, cmd):
+        try:
+            ovs_ssh.run(cmd)
+            ovs_ssh.flush()
+        except:
+            LOG.info('_send_ping is returing False for cmd : ' + str(cmd))
+            return False
+        LOG.info('_send_ping is returing True')
+        return True
+
+    @atomic.action_timer("ovn_network.ping_ports")
+    def _ping_ports(self, src_port, dst_port):
+        LOG.info("src_port = " + str(src_port) + "\n")
+        LOG.info("dst_port = " + str(dst_port) + "\n")
+        ovs_ssh = self.farm_clients(src_port['sandbox_info']['farm'], "ovs-ssh")
+        #ovs_ssh.enable_batch_mode()
+        dst_ip = str(netaddr.IPNetwork(dst_port['ip']).ip)
+        num_attemps = 0
+        cmd = 'ip netns exec {p} ping -c1 {d}'.format(p=src_port["name"], d=dst_ip)
+        success = False
+        total_atempts = 45
+        while num_attemps < total_atempts:
+            success = self._send_ping(ovs_ssh, cmd)
+            if success:
+                break
+            num_attemps += 1
+
+        if not success:
+            LOG.info('ping failed')
 
     @atomic.action_timer("ovn_network.list_oflow_count_for_sandboxes")
     def _list_oflow_count_for_sandboxes(self, sandboxes,
