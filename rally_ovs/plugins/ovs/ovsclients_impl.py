@@ -61,7 +61,7 @@ class OvnNbctl(OvsClient):
                 ovn_cmd = "ovs-appctl -t ovn-nbctl run"
             else:
                 #ovn_cmd = "ovn-nbctl"
-                ovn_cmd = "ovs-appctl -t /var/run/openvswitch/ovn-nbctl.88357.ctl run"
+                ovn_cmd = "ovs-appctl -t/var/run/openvswitch/ovn-nbctl.347.ctl run"
 
             if self.batch_mode:
                 cmd = itertools.chain([" -- "], opts, [cmd], args)
@@ -264,10 +264,14 @@ class OvsSsh(OvsClient):
         def enable_batch_mode(self, value=True):
             self.batch_mode = bool(value)
 
+        def set_sandbox(self, sandbox, install_method="sandbox"):
+            self.sandbox = sandbox
+            self.install_method = install_method
+
         def run(self, cmd):
             self.cmds = self.cmds or []
 
-            self.cmds.append('sudo' + ' ' + cmd)
+            self.cmds.append('sudo docker exec ' + self.sandbox + ' ' + cmd)
             if self.batch_mode:
                 return
 
@@ -318,7 +322,7 @@ class OvsVsctl(OvsClient):
                 if self.install_method == "sandbox":
                     self.cmds.append(". %s/sandbox.rc" % self.sandbox)
                 elif self.install_method == "docker":
-                    self.cmds.append("sudo docker exec %s ovs-vsctl " % self.sandbox + cmd + " " + " ".join(args))
+                    self.cmds.append("sudo docker exec %s ovs-vsctl " % self.sandbox + cmd + " " + " ".join(args) + " " + " ".join(extras))
 
             if self.install_method != "docker":
                 if self.install_method == "physical":
@@ -350,7 +354,7 @@ class OvsVsctl(OvsClient):
             self.cmds = None
 
 
-        def add_port(self, bridge, port, may_exist=True, internal=False):
+        def add_port(self, bridge, port, may_exist=True, internal=True):
             opts = ['--may-exist'] if may_exist else None
 
             extras = ['--', 'set interface {} type=internal'.format(port)] if internal else None

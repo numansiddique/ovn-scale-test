@@ -1,5 +1,5 @@
 {% set farm_nodes = farm_nodes or 1 %}
-{% set networks = networks or 1 %}
+{% set networks = networks or 20 %}
 {% set internal_ports_cleanup = internal_ports_cleanup or 0 %}
 {
     "version": 2,
@@ -11,11 +11,11 @@
                  "name": "OvnSandbox.create_sandbox",
                  "args": {
                      "sandbox_create_args": {
-                         "farm": "ovn-farm-node-0",
+                         "farm": "ovn-chassis-1",
                          "amount": 1,
                          "batch" : 1,
                          "start_cidr": "10.19.188.11/24",
-                         "net_dev": "em3",
+                         "net_dev": "eth1",
                          "tag": "ToR1"
                      }
                  },
@@ -31,11 +31,11 @@
                  "name": "OvnSandbox.create_sandbox",
                  "args": {
                      "sandbox_create_args": {
-                         "farm": "ovn-farm-node-1",
+                         "farm": "ovn-chassis-2",
                          "amount": 1,
                          "batch" : 1,
                          "start_cidr": "10.19.188.13/24",
-                         "net_dev": "em3",
+                         "net_dev": "eth1",
                          "tag": "ToR1"
                      }
                  },
@@ -51,11 +51,11 @@
                  "name": "OvnSandbox.create_sandbox",
                  "args": {
                      "sandbox_create_args": {
-                         "farm": "ovn-farm-node-2",
+                         "farm": "ovn-chassis-3",
                          "amount": 1,
                          "batch" : 1,
                          "start_cidr": "10.19.188.15/24",
-                         "net_dev": "em3",
+                         "net_dev": "eth1",
                          "tag": "ToR1"
                      }
                  },
@@ -83,7 +83,7 @@
                             "batch": 1
                         },
                         "port_create_args" : {"batch": 2},
-                        "ports_per_network": {{ports_per_network}},
+                        "ports_per_network": "2",
                         "port_bind_args": {
                             "internal": true,
                             "wait_up": true

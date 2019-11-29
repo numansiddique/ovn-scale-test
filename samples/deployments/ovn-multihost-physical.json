@@ -23,7 +23,7 @@
             "provider": {
                 "credentials": [
                     {
-                        "host": "10.19.188.11",
+                        "host": "ovn-chassis-1",
                         "user": "root"
                     }
                 ],
@@ -38,7 +38,7 @@
             "provider": {
                 "credentials": [
                     {
-                        "host": "10.19.188.13",
+                        "host": "ovn-chassis-2",
                         "user": "root"
                     }
                 ],

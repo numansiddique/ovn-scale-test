@@ -132,17 +132,22 @@ class OvnNetwork(ovn.OvnScenario):
 
         # Create ports on the logical networks
         sandboxes = self.context["sandboxes"]
+        newsandboxes = []
+        for s in sandboxes:
+            if s['name'].startswith('ovn-chassis'):
+                newsandboxes.append(s)
+
         if not sandboxes:
             # when there is no sandbox specified, bind on all sandboxes.
             sandboxes = utils.get_sandboxes(self.task["deployment_uuid"])
 
         network = lnetworks[0]
         lports = self._create_lports(network, port_create_args, ports_per_network)
-        if (len(lports) < len(sandboxes)):
+        if (len(lports) < len(newsandboxes)):
             LOG.warn("Number of ports less than chassis: random binding\n")
-        self._bind_ports_and_wait(lports, sandboxes, port_bind_args)
+        self._bind_ports_and_wait(lports, newsandboxes, port_bind_args)
         self._ping_ports(lports[0], lports[1])
-        self._cleanup_ovs_internal_ports(sandboxes)
+        #self._cleanup_ovs_internal_ports(newsandboxes)
 
     def bind_ports(self):
         pass

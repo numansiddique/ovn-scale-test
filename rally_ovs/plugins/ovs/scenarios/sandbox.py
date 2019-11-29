@@ -69,8 +69,8 @@ class SandboxScenario(scenario.OvsScenario):
     def _add_sandbox_resource(self, farm_dep, sandboxes):
         dep = objects.Deployment.get(farm_dep)
         res = dep.get_resources(type=ResourceType.SANDBOXES)[0]
-
         info = res["info"]
+        LOG.info("NUMS : _add_sandbox_resource : res = " + str(info))
         sandbox_set = set(info["sandboxes"])
         sandbox_set |= set(sandboxes)
 
@@ -165,7 +165,8 @@ class SandboxScenario(scenario.OvsScenario):
                                 net_dev)
                 cmds.append(cmd)
 
-                sandboxes["sandbox-%s" % host_ip] = tag
+                #sandboxes["sandbox-%s" % host_ip] = tag
+                sandboxes[farm] = tag
 
             if install_method == "docker":
                 print "Do not run ssh; sandbox installed by ansible-docker"
@@ -181,9 +182,11 @@ class SandboxScenario(scenario.OvsScenario):
             if batch_left <= 0:
                 break;
 
+        LOG.info("-------> Create sandbox 1111 : %s" % sandboxes)
         self._add_sandbox_resource(farm, sandboxes)
 
-        return sandboxes
+        LOG.info("-------> Create sandbox returning: %s" % sandboxes)
+        return {farm: tag}
 
 
     @atomic.action_timer("sandbox.delete_sandbox")

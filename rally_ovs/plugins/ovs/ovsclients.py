@@ -143,7 +143,10 @@ def get_lswitch_info(info):
         if tokens[0] == "switch":
             start_cidr = re.sub("\(lswitch_|\)", "", tokens[2])
             if len(start_cidr):
-                cidr = netaddr.IPNetwork(start_cidr)
+                try:
+                    cidr = netaddr.IPNetwork(start_cidr)
+                except:
+                    cidr = ""
             else:
                 cidr = ""
             name = tokens[2][1:-1]

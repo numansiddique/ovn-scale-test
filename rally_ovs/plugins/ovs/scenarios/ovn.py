@@ -319,7 +319,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
             ovs_ssh = self.farm_clients(farm, "ovs-ssh")
             ovs_ssh.enable_batch_mode()
             ovs_vsctl = self.farm_clients(farm, "ovs-vsctl")
-            ovs_vsctl.set_sandbox(sandbox, self.install_method)
+            ovs_vsctl.set_sandbox(sb_name, self.install_method)
             ovs_vsctl.enable_batch_mode()
 
             if 'ovs-internal-ports' not in self.context:
@@ -334,11 +334,11 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
 
     @atomic.action_timer("ovn_network.bind_port")
     def _bind_ports(self, lports, sandboxes, port_bind_args):
-        internal = port_bind_args.get("internal", False)
+        internal = port_bind_args.get("internal", True)
         sandbox_num = len(sandboxes)
         lport_num = len(lports)
         lport_per_sandbox = (lport_num + sandbox_num - 1) / sandbox_num
-
+        lport = {}
         if (len(lports) < len(sandboxes)):
             for lport in lports:
                 sandbox_data = random.choice(sandboxes)
@@ -365,6 +365,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
                 # If it's an internal port create a "fake vm"
                 if internal:
                     ovs_ssh = self.farm_clients(farm, "ovs-ssh")
+                    ovs_ssh.set_sandbox(sandbox, self.install_method)
                     self._bind_ovs_internal_vm(lport, sandbox, ovs_ssh)
                     ovs_ssh.flush()
 
@@ -393,6 +394,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
                 # If it's an internal port create a "fake vm"
                 if internal:
                     ovs_ssh = self.farm_clients(farm, "ovs-ssh")
+                    ovs_ssh.set_sandbox(sandbox, self.install_method)
                     ovs_ssh.enable_batch_mode()
 
                     for lport in lport_slice:
@@ -430,6 +432,7 @@ class OvnScenario(ovnclients.OvnClientMixin, scenario.OvsScenario):
         LOG.info("dst_port = " + str(dst_port) + "\n")
         ovs_ssh = self.farm_clients(src_port['sandbox_info']['farm'], "ovs-ssh")
         #ovs_ssh.enable_batch_mode()
+        ovs_ssh.set_sandbox(src_port['sandbox_info']['farm'], self.install_method)
         dst_ip = str(netaddr.IPNetwork(dst_port['ip']).ip)
         num_attemps = 0
         cmd = 'ip netns exec {p} ping -c1 {d}'.format(p=src_port["name"], d=dst_ip)
