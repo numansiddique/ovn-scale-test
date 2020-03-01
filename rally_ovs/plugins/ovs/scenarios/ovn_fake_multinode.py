@@ -71,7 +71,7 @@ class OvnFakeMultinode(ovn.OvnScenario):
         ssh_conn.run(cmd)
 
     def _connect_chassis(self, ssh_conn, node_name, central_ip, ovn_fake_path):
-        cmd = "cd {} && ./ovn_cluster.sh set-chassis-ovn-remote {} tcp:{}:6642".format(
+        cmd = "cd {} && ./ovn_cluster.sh set-chassis-ovn-remote {} ssl:{}:6642".format(
             ovn_fake_path, node_name, central_ip
         )
         ssh_conn.run(cmd)
